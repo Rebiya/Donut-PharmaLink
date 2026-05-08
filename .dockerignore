@@ -1,0 +1,12 @@
+.git
+.gitignore
+venv
+__pycache__
+.pytest_cache
+artifacts
+model-cache
+*.pyc
+*.pyo
+*.pyd
+*.log
+OCR_training.ipynb
