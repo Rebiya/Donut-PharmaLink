@@ -5,8 +5,8 @@ import time
 
 from fastapi import APIRouter, File, HTTPException, Response, UploadFile
 
-from app.models.schemas import PredictResponse
 from app.core.config import get_settings
+from app.models.schemas import ChatRequest, ChatResponse, PredictResponse
 from app.services.extraction_service import ExtractionService
 from app.services.llm_service import LLMService
 from app.services.normalization_service import NormalizationService
@@ -81,3 +81,38 @@ async def predict(image: UploadFile = File(...)) -> PredictResponse:
         normalized_drugs=normalized_drugs,
         result=result,
     )
+
+
+@router.post("/chat", response_model=ChatResponse)
+async def chat(request: ChatRequest) -> ChatResponse:
+    """Answer pharmaceutical questions using FAISS-grounded drug names."""
+    if not settings.enable_chat_endpoint:
+        raise HTTPException(status_code=404, detail="Chat endpoint is disabled.")
+
+    t_total = time.perf_counter()
+    try:
+        t = time.perf_counter()
+        candidates = extraction_service.extract_candidates(request.message)
+        extract_ms = (time.perf_counter() - t) * 1000
+        t = time.perf_counter()
+        normalized_drugs = normalization_service.normalize(candidates)
+        norm_ms = (time.perf_counter() - t) * 1000
+        t = time.perf_counter()
+        result = llm_service.answer_chat(request.message, normalized_drugs)
+        llm_ms = (time.perf_counter() - t) * 1000
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Chat pipeline failed")
+        raise HTTPException(status_code=500, detail=f"Chat failed: {exc}") from exc
+
+    if settings.enable_latency_logging:
+        logger.info(
+            "chat_latency_ms extract=%.1f normalize=%.1f llm=%.1f total=%.1f",
+            extract_ms,
+            norm_ms,
+            llm_ms,
+            (time.perf_counter() - t_total) * 1000,
+        )
+
+    return result

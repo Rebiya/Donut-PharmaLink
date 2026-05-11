@@ -6,8 +6,8 @@ ENV DONUT_MODEL_PATH=model-cache
 ENV FAISS_INDEX_PATH=artifacts/faiss_drugs.index
 ENV DRUGS_CACHE_PATH=artifacts/drug_names.json
 ENV EMBEDDINGS_CACHE_PATH=artifacts/drug_embeddings.npy
-# ENV OPENROUTER_MODEL=deepseek/deepseek-chat
-ENV OPENROUTER_MODEL=deepseek/deepseek-r1:free
+ENV GEMINI_MODEL_NAME=models/gemini-2.0-flash-lite
+ENV ENABLE_CHAT_ENDPOINT=true
 ENV LOCAL_FILES_ONLY=true
 
 WORKDIR /app

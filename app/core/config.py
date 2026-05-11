@@ -18,9 +18,11 @@ class Settings(BaseSettings):
     app_version: str = "1.0.0"
     donut_model_path: Path = Field(default=Path("model-cache"))
     embedding_model_name: str = "sentence-transformers/all-MiniLM-L6-v2"
-    openrouter_api_key: str = ""
-    openrouter_model: str = "deepseek/deepseek-chat"
-    openrouter_base_url: str = "https://openrouter.ai/api/v1/chat/completions"
+    gemini_api_key: str = ""
+    gemini_model_name: str = "models/gemini-2.0-flash-lite"
+    gemini_timeout: float = 20.0
+    gemini_max_output_tokens: int = 512
+    enable_chat_endpoint: bool = True
     faiss_index_path: Path = Field(default=Path("artifacts/faiss_drugs.index"))
     drugs_cache_path: Path = Field(default=Path("artifacts/drug_names.json"))
     embeddings_cache_path: Path = Field(default=Path("artifacts/drug_embeddings.npy"))

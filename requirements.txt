@@ -8,6 +8,7 @@ rapidfuzz
 sentence-transformers
 faiss-cpu
 kagglehub
+google-genai
 httpx
 pydantic
 pydantic-settings
@@ -16,3 +17,5 @@ pytest
 pandas
 numpy
 huggingface-hub
+dotenv
+python-dotenv
