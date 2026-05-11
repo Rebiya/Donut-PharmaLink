@@ -1,10 +1,11 @@
-"""LLM service using local Ollama with schema enforcement."""
+"""LLM service using OpenRouter with schema enforcement."""
 
 import json
 import logging
+import time
 from typing import List
 
-from ollama import Client
+import httpx
 from pydantic import ValidationError
 
 from app.core.config import get_settings
@@ -47,11 +48,17 @@ Edge cases:
 
 
 class LLMService:
-    """Wrap Ollama chat API with schema validation."""
+    """Wrap OpenRouter chat API with schema validation."""
 
     def __init__(self) -> None:
         self.settings = get_settings()
-        self.client = Client(host=self.settings.ollama_host)
+        headers = {"Content-Type": "application/json"}
+        if self.settings.openrouter_api_key:
+            headers["Authorization"] = f"Bearer {self.settings.openrouter_api_key}"
+        self.client = httpx.Client(
+            timeout=httpx.Timeout(20.0, connect=5.0),
+            headers=headers,
+        )
 
     def build_payload(self, raw_text: str, normalized_drugs: List[str]) -> str:
         """Construct user payload for model."""
@@ -66,25 +73,55 @@ class LLMService:
     ) -> PrescriptionResponse:
         """Request schema-compliant structured JSON and validate it."""
         schema = PrescriptionResponse.model_json_schema()
+        t_start = time.perf_counter()
         try:
-            response = self.client.chat(
-                model=self.settings.ollama_model,
-                format=schema,
-                messages=[
+            if not self.settings.openrouter_api_key:
+                raise RuntimeError("OPENROUTER_API_KEY is required for OpenRouter calls")
+            payload = {
+                "model": self.settings.openrouter_model,
+                "messages": [
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {
                         "role": "user",
                         "content": self.build_payload(raw_text, normalized_drugs),
                     },
                 ],
-            )
-            content = response["message"]["content"]
-            logger.debug("LLM raw response: %s", content)
+                "response_format": {
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "prescription_response",
+                        "strict": True,
+                        "schema": schema,
+                    },
+                },
+                "temperature": 0,
+            }
+            content = ""
+            for _ in range(2):
+                response = self.client.post(
+                    self.settings.openrouter_base_url,
+                    json=payload,
+                )
+                response.raise_for_status()
+                data = response.json()
+                content = data["choices"][0]["message"]["content"]
+                try:
+                    parsed = PrescriptionResponse.model_validate_json(content)
+                    if self.settings.enable_latency_logging:
+                        logger.info(
+                            "openrouter_latency_ms total=%.1f",
+                            (time.perf_counter() - t_start) * 1000,
+                        )
+                    return parsed
+                except ValidationError:
+                    continue
+
+            logger.debug("LLM raw response (invalid schema): %s", content)
             parsed = PrescriptionResponse.model_validate_json(content)
             return parsed
         except ValidationError as exc:
             logger.warning("Invalid LLM JSON, using fallback response: %s", exc)
-        except Exception as exc:  # pragma: no cover - depends on local ollama runtime
+        except Exception as exc:  # pragma: no cover - network/runtime dependent
             logger.warning("LLM unavailable, using fallback response: %s", exc)
 
         fallback_drugs = [{"name": name} for name in normalized_drugs] or None

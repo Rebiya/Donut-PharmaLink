@@ -8,7 +8,7 @@ rapidfuzz
 sentence-transformers
 faiss-cpu
 kagglehub
-ollama
+httpx
 pydantic
 pydantic-settings
 python-multipart

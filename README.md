@@ -6,13 +6,13 @@ Production-ready FastAPI backend for medical prescription image processing.
 
 DONUT-PHARMALINK accepts a prescription image, extracts text with Donut OCR,
 detects likely drug mentions, normalizes names against an FDA dataset, and uses
-a local Ollama model to produce structured JSON output.
+an OpenRouter LLM to produce structured JSON output.
 
 ## Architecture
 
 Frontend -> FastAPI -> Donut OCR -> Candidate Extraction ->
 Normalization (Fuzzy + Embedding + FAISS + FDA dataset) ->
-Ollama LLM (Schema Enforced) -> JSON Response
+OpenRouter LLM (Schema Enforced) -> JSON Response
 
 ## Setup (Local)
 
@@ -41,19 +41,11 @@ docker build -t pharmalink .
 docker run -p 8000:8000 pharmalink
 ```
 
-To pull `llama3.1` during image build:
+Required runtime variables:
 
-```bash
-docker build --build-arg OLLAMA_PULL_DURING_BUILD=1 -t pharmalink .
-```
-
-## Ollama Setup
-
-Install Ollama and pull the model:
-
-```bash
-ollama pull llama3.1
-```
+- `OPENROUTER_API_KEY=...`
+- `OPENROUTER_MODEL=deepseek/deepseek-chat`
+- `DONUT_MODEL_PATH=model-cache`
 
 ## Example API Request
 
@@ -75,9 +67,10 @@ pytest -q
 1. Create a **Docker Space**.
 2. Push this repository with `Dockerfile` at root.
 3. Set runtime variables:
-   - `OLLAMA_HOST=http://127.0.0.1:11434`
-   - `OLLAMA_MODEL=llama3.1`
-   - `OLLAMA_PULL_ON_START=1` (first boot can be slow)
+   - `OPENROUTER_API_KEY=...`
+   - `OPENROUTER_MODEL=deepseek/deepseek-chat`
+   - `DONUT_MODEL_PATH=model-cache`
+   - `LOCAL_FILES_ONLY=true`
 4. Space port: `8000`.
 5. Health check URL: `/`.
 
@@ -89,9 +82,8 @@ pytest -q
   - `pytest.ini` already sets `pythonpath = .`.
 - `GET /` returns 404
   - Use latest code; root health endpoint is `GET /`.
-- Ollama connection errors
-  - Start Ollama locally: `ollama serve`
-  - Pull model: `ollama pull llama3.1`
-  - Verify host with `OLLAMA_HOST`.
+- OpenRouter connection errors
+  - Verify `OPENROUTER_API_KEY` is set.
+  - Check outbound network access to `https://openrouter.ai/api/v1/chat/completions`.
 - Slow first prediction
   - First run downloads/caches models and builds FAISS index.

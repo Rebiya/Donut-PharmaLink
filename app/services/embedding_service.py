@@ -22,7 +22,10 @@ class EmbeddingService:
         if self._model is not None:
             return
         logger.info("Loading embedding model: %s", self.settings.embedding_model_name)
-        self._model = SentenceTransformer(self.settings.embedding_model_name)
+        self._model = SentenceTransformer(
+            self.settings.embedding_model_name,
+            local_files_only=self.settings.local_files_only,
+        )
 
     def encode(self, texts: Iterable[str]) -> np.ndarray:
         """Encode texts into float32 embeddings."""

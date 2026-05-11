@@ -1,6 +1,7 @@
 """Drug name normalization using fuzzy + embeddings + FAISS."""
 
 import logging
+import time
 from pathlib import Path
 from typing import Dict, List
 
@@ -29,8 +30,14 @@ class NormalizationService:
         if self._initialized:
             return
 
+        if self.settings.local_files_only and not self.settings.drugs_cache_path.exists():
+            raise FileNotFoundError(
+                f"Missing local drug cache: {self.settings.drugs_cache_path}"
+            )
         self.drug_names = load_fda_drug_names(
-            self.settings.kaggle_dataset_ref, self.settings.drugs_cache_path
+            self.settings.kaggle_dataset_ref,
+            self.settings.drugs_cache_path,
+            local_files_only=self.settings.local_files_only,
         )
         index_path = self.settings.faiss_index_path
         emb_path = self.settings.embeddings_cache_path
@@ -67,6 +74,7 @@ class NormalizationService:
 
     def normalize(self, candidates: List[str], top_k: int | None = None) -> List[str]:
         """Return deduplicated top normalized drug names."""
+        t_start = time.perf_counter()
         self._load_or_build_faiss()
         top_k = top_k or self.settings.normalize_top_k
         combined: Dict[str, float] = {}
@@ -88,4 +96,10 @@ class NormalizationService:
                 deduped.append(name)
             if len(deduped) >= top_k:
                 break
+        if self.settings.enable_latency_logging:
+            logger.info(
+                "normalize_latency_ms candidates=%d total=%.1f",
+                len(candidates),
+                (time.perf_counter() - t_start) * 1000,
+            )
         return deduped

@@ -37,12 +37,19 @@ def _extract_names_from_dataframe(df: pd.DataFrame) -> List[str]:
     return names
 
 
-def load_fda_drug_names(dataset_ref: str, cache_path: Path) -> List[str]:
+def load_fda_drug_names(
+    dataset_ref: str, cache_path: Path, local_files_only: bool = False
+) -> List[str]:
     """Download FDA dataset from KaggleHub and return cleaned unique drug names."""
     cache_path.parent.mkdir(parents=True, exist_ok=True)
     if cache_path.exists():
         logger.info("Loading cached drug names from %s", cache_path)
         return json.loads(cache_path.read_text(encoding="utf-8"))
+
+    if local_files_only:
+        raise FileNotFoundError(
+            f"Drug cache missing and local_files_only is enabled: {cache_path}"
+        )
 
     logger.info("Downloading FDA dataset: %s", dataset_ref)
     dataset_path = Path(kagglehub.dataset_download(dataset_ref))
